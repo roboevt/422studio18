@@ -7,12 +7,10 @@
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 #include <unistd.h>
-#include <stdlib.h>
 
 #define EXPECTED_ARGS 1
 #define QUEUE_SIZE 5
 #define PORT 30003
-#define SIZE 1000
 
 int main(int argc, char* argv[]) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -26,7 +24,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    char hostName[100];
+    char* hostName[100];
     gethostname(hostName, 100);
     printf("Host name: %s\n", hostName);
 
@@ -49,36 +47,25 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         printf("Client connected\n");
-        unsigned* buff = malloc(SIZE * sizeof(unsigned));
-        int startingPoint = 0;
-        while(startingPoint < SIZE) {
-            ssize_t readBytes = read(clientFd, buff, SIZE * sizeof(unsigned));
-            if(!readBytes) {
-                break;  // EOF
-            }
-            int endPoint = startingPoint + readBytes / sizeof(unsigned);
-            if(endPoint > SIZE) {
-                endPoint = SIZE;
-            }
-            int i;
-            for(i = startingPoint; i < endPoint; i++) {
-                buff[i] = ntohl(buff[i]);  // Convert from network byte order
-            }
-            if(buff[0] == 418) { 
+        FILE* client = fdopen(clientFd, "r");
+        if(client == NULL) {
+            perror("fdopen");
+            return 1;
+        }
+        unsigned num;
+        while(fscanf(client, "%u ", &num) != EOF) {
+            printf("%u\n", num);
+            if(num == 418) {
                 printf("I'm a teapot\n");
                 printf("Code recieved, terminating\n");
                 goto end;  // I know, I know, goto is bad, but it's the only way to break out of two loops
             }
-            for(i = startingPoint; i < endPoint; i++) {
-                printf("%u ", buff[i]); 
-            }
-            startingPoint = endPoint;
         }
-        printf("\nClient disconnected\n");
-        free(buff);
+        printf("Client disconnected\n");
     }
 end:
     printf("Server terminated\n");
     close(sock);
+    //unlink(argv[1]);
     return 0;
 }

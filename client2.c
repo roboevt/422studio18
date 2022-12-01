@@ -8,11 +8,13 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <stdlib.h>
 
 #define EXPECTED_ARGS 1
 #define EXPECTED_ARGS_QUIT 2
 #define QUEUE_SIZE 5
 #define PORT 30003
+#define SIZE 1000
 
 int main(int argc, char* argv[]) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -34,7 +36,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    char* hostName[100];
+    char hostName[100];
     gethostname(hostName, 100);
     printf("Host name: %s\n", hostName);
 
@@ -49,18 +51,28 @@ int main(int argc, char* argv[]) {
         perror("connect");
         return 1;
     }
-    FILE* server = fdopen(sock, "w");
-    if(server == NULL) {
-        perror("fdopen");
-        return 1;
-    }
-    getaddrinfo()
+    char serverHostName[100];
+    char serverServiceName[100];
+    getnameinfo((struct sockaddr *)&addr, sizeof(addr), serverHostName, 100, serverServiceName, 100, 0);
+    printf("Connected to %s:%s\n", serverHostName, serverServiceName);
     if(quit) {
-        fprintf(server, "418");
+        unsigned num = htonl(418);
+        write(sock, &num, sizeof(unsigned));
     } else {
-        fprintf(server, "1 2 3");
-        printf("1 2 3\n");
+        unsigned* buff;
+        buff = malloc(SIZE * sizeof(unsigned));
+        if(buff == NULL) {
+            perror("malloc");
+            return 1;
+        }
+        for(int i = 0; i < SIZE; i++) {
+            buff[i] = htonl(i);
+        }
+        if(write(sock, buff, SIZE * sizeof(unsigned)) != SIZE * sizeof(unsigned)) {
+            perror("write");
+            return 1;
+        }
+        free(buff);
     }
-    fclose(server);
     return 0;
 }
